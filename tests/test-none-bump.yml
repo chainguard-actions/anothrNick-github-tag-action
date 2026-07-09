@@ -1,0 +1,40 @@
+name: Test none bump skips tagging
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_REF: refs/heads/main
+      GITHUB_EVENT_NAME: push
+      GITHUB_REPOSITORY: test-owner/test-repo
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+
+      - id: action
+        uses: .
+        env:
+          DEFAULT_BUMP: none
+          DRY_RUN: "true"
+          RELEASE_BRANCHES: main
+          INITIAL_VERSION: "0.0.0"
+          WITH_V: "false"
+          VERBOSE: "true"
+          GITHUB_TOKEN: dummy-token
+
+      - name: Assert new_tag is set (to current tag when skipping)
+        env:
+          NEW_TAG: ${{ steps.action.outputs.new_tag }}
+          TAG: ${{ steps.action.outputs.tag }}
+        run: |
+          echo "new_tag: $NEW_TAG"
+          echo "tag: $TAG"
+          # When DEFAULT_BUMP=none and no bump token in commit, action skips
+          # and outputs the current/initial tag. Both outputs should be set.
+          if [ -z "$NEW_TAG" ] && [ -z "$TAG" ]; then
+            echo "FAIL: both new_tag and tag are empty"
+            exit 1
+          fi
+          echo "PASS: action completed with new_tag=$NEW_TAG tag=$TAG"

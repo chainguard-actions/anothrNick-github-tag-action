@@ -1,0 +1,45 @@
+name: Test custom tag dry-run
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_REF: refs/heads/main
+      GITHUB_EVENT_NAME: push
+      GITHUB_REPOSITORY: test-owner/test-repo
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+
+      - id: action
+        uses: .
+        env:
+          CUSTOM_TAG: "my-custom-release-1.0.0"
+          DRY_RUN: "true"
+          RELEASE_BRANCHES: main
+          VERBOSE: "true"
+          GITHUB_TOKEN: dummy-token
+
+      - name: Assert new_tag equals custom tag
+        env:
+          NEW_TAG: ${{ steps.action.outputs.new_tag }}
+        run: |
+          echo "new_tag: $NEW_TAG"
+          if [ "$NEW_TAG" != "my-custom-release-1.0.0" ]; then
+            echo "FAIL: expected new_tag='my-custom-release-1.0.0', got: $NEW_TAG"
+            exit 1
+          fi
+          echo "PASS: new_tag=$NEW_TAG"
+
+      - name: Assert tag equals custom tag
+        env:
+          TAG: ${{ steps.action.outputs.tag }}
+        run: |
+          echo "tag: $TAG"
+          if [ "$TAG" != "my-custom-release-1.0.0" ]; then
+            echo "FAIL: expected tag='my-custom-release-1.0.0', got: $TAG"
+            exit 1
+          fi
+          echo "PASS: tag=$TAG"
