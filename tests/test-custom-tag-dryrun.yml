@@ -1,0 +1,55 @@
+name: Test custom tag dry run
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+
+      - name: Set up git origin reachable inside the Docker container
+        run: |
+          git config user.email "test@example.com"
+          git config user.name "Test User"
+          rm -rf "$GITHUB_WORKSPACE/.git-remote"
+          git init --bare "$GITHUB_WORKSPACE/.git-remote"
+          git push "$GITHUB_WORKSPACE/.git-remote" HEAD:refs/heads/act-harness
+          git push "$GITHUB_WORKSPACE/.git-remote" --tags
+          git remote set-url origin "$GITHUB_WORKSPACE/.git-remote" 2>/dev/null || \
+            git remote add origin "$GITHUB_WORKSPACE/.git-remote"
+
+      - id: action
+        uses: .
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DEFAULT_BUMP: minor
+          WITH_V: "true"
+          DRY_RUN: "true"
+          CUSTOM_TAG: v9.8.7
+          RELEASE_BRANCHES: act-harness
+          BRANCH_HISTORY: last
+          VERBOSE: "true"
+
+      - name: Assert new_tag output
+        env:
+          NEW_TAG: ${{ steps.action.outputs.new_tag }}
+        run: |
+          echo "new_tag: $NEW_TAG"
+          if [ "$NEW_TAG" != "v9.8.7" ]; then
+            echo "FAIL: expected new_tag='v9.8.7', got '$NEW_TAG'"
+            exit 1
+          fi
+          echo "PASS"
+
+      - name: Assert tag output
+        env:
+          TAG: ${{ steps.action.outputs.tag }}
+        run: |
+          echo "tag: $TAG"
+          if [ "$TAG" != "v9.8.7" ]; then
+            echo "FAIL: expected tag='v9.8.7', got '$TAG'"
+            exit 1
+          fi
+          echo "PASS"

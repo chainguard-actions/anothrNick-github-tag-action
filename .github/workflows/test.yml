@@ -19,7 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744 # v3
+        uses: actions/checkout@a37ce9120846195fa4ece8f58b268e6043cb2f26 # v3
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: '0'
@@ -72,7 +72,7 @@ jobs:
             [  "$1" = "`echo -e "$1\n$2" | sort -V | head -n1`" ]
           }
           verlt() {
-            [ "$1" = "$2" ] && return 1 || verlte "$1" "$2"
+            [ "$1" = "$2" ] && return 1 || verlte $1 $2
           }
 
           main="$(verlt "$MAIN_OUTPUT_TAG" "$MAIN_OUTPUT_NEWTAG" && true || false)"
@@ -87,4 +87,3 @@ jobs:
           fi
 
           # todo add test for #none bump
-

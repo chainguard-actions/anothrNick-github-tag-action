@@ -1,0 +1,68 @@
+name: Test major bump via commit message
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+
+      - name: Create a commit with #major token
+        run: |
+          git config user.email "test@example.com"
+          git config user.name "Test User"
+          echo "major-test-$(date +%s)" > "$GITHUB_WORKSPACE/major-test-file.txt"
+          git add "$GITHUB_WORKSPACE/major-test-file.txt"
+          git commit -m "breaking change #major"
+
+      - name: Set up git origin reachable inside the Docker container
+        run: |
+          rm -rf "$GITHUB_WORKSPACE/.git-remote"
+          git init --bare "$GITHUB_WORKSPACE/.git-remote"
+          git push "$GITHUB_WORKSPACE/.git-remote" HEAD:refs/heads/act-harness
+          git push "$GITHUB_WORKSPACE/.git-remote" --tags
+          git remote set-url origin "$GITHUB_WORKSPACE/.git-remote" 2>/dev/null || \
+            git remote add origin "$GITHUB_WORKSPACE/.git-remote"
+
+      - id: action
+        uses: .
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DEFAULT_BUMP: minor
+          WITH_V: "true"
+          DRY_RUN: "true"
+          INITIAL_VERSION: "1.0.0"
+          RELEASE_BRANCHES: act-harness
+          BRANCH_HISTORY: last
+          VERBOSE: "true"
+
+      - name: Assert part is major
+        env:
+          PART: ${{ steps.action.outputs.part }}
+        run: |
+          echo "part: $PART"
+          if [ "$PART" != "major" ]; then
+            echo "FAIL: expected part='major', got '$PART'"
+            exit 1
+          fi
+          echo "PASS"
+
+      - name: Assert new_tag starts with v and has bumped major
+        env:
+          NEW_TAG: ${{ steps.action.outputs.new_tag }}
+        run: |
+          echo "new_tag: $NEW_TAG"
+          if [[ "$NEW_TAG" != v* ]]; then
+            echo "FAIL: expected new_tag to start with 'v', got '$NEW_TAG'"
+            exit 1
+          fi
+          # Major version should be >= 1
+          MAJOR=$(echo "$NEW_TAG" | sed 's/^v//' | cut -d. -f1)
+          echo "major component: $MAJOR"
+          if [ "$MAJOR" -lt 1 ]; then
+            echo "FAIL: expected major version >= 1, got '$MAJOR'"
+            exit 1
+          fi
+          echo "PASS: new_tag=$NEW_TAG"

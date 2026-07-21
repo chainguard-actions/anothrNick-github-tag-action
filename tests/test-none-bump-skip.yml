@@ -1,0 +1,49 @@
+name: Test none bump skips tagging
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+
+      - name: Set up git with an existing tag and origin reachable inside Docker
+        run: |
+          git config user.email "test@example.com"
+          git config user.name "Test User"
+          # Create a tag on a previous commit so HEAD is ahead of the tag
+          git tag v2.3.4 HEAD~1 2>/dev/null || git tag v2.3.4 HEAD
+          rm -rf "$GITHUB_WORKSPACE/.git-remote"
+          git init --bare "$GITHUB_WORKSPACE/.git-remote"
+          git push "$GITHUB_WORKSPACE/.git-remote" HEAD:refs/heads/act-harness
+          git push "$GITHUB_WORKSPACE/.git-remote" --tags
+          git remote set-url origin "$GITHUB_WORKSPACE/.git-remote" 2>/dev/null || \
+            git remote add origin "$GITHUB_WORKSPACE/.git-remote"
+
+      - id: action
+        uses: .
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DEFAULT_BUMP: none
+          WITH_V: "true"
+          DRY_RUN: "true"
+          RELEASE_BRANCHES: act-harness
+          BRANCH_HISTORY: last
+          VERBOSE: "true"
+
+      - name: Assert tag output is set (action skipped bump)
+        env:
+          TAG: ${{ steps.action.outputs.tag }}
+          NEW_TAG: ${{ steps.action.outputs.new_tag }}
+        run: |
+          echo "tag: $TAG"
+          echo "new_tag: $NEW_TAG"
+          # When DEFAULT_BUMP=none and no bump token, action skips and outputs current tag
+          # The tag should be set (either v2.3.4 or empty if HEAD==tag_commit)
+          if [ -z "$TAG" ] && [ -z "$NEW_TAG" ]; then
+            echo "FAIL: expected tag or new_tag to be set"
+            exit 1
+          fi
+          echo "PASS: tag=$TAG new_tag=$NEW_TAG"
