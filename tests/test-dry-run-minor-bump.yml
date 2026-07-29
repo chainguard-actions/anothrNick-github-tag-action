@@ -1,0 +1,65 @@
+name: Test dry-run minor bump
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+
+      - name: Set up git config and origin reachable inside Docker container
+        run: |
+          git config user.email "test@example.com"
+          git config user.name "Test User"
+          # Create a bare repo under GITHUB_WORKSPACE so it's reachable inside the Docker container
+          rm -rf "$GITHUB_WORKSPACE/.git-remote"
+          git init --bare "$GITHUB_WORKSPACE/.git-remote"
+          git push "$GITHUB_WORKSPACE/.git-remote" HEAD:refs/heads/act-harness
+          git push "$GITHUB_WORKSPACE/.git-remote" --tags
+          git remote set-url origin "$GITHUB_WORKSPACE/.git-remote" 2>/dev/null || \
+            git remote add origin "$GITHUB_WORKSPACE/.git-remote"
+
+      - id: action
+        uses: .
+        env:
+          DEFAULT_BUMP: minor
+          DRY_RUN: "true"
+          WITH_V: "false"
+          RELEASE_BRANCHES: act-harness,master,main
+          INITIAL_VERSION: "0.0.0"
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Assert new_tag is set
+        env:
+          NEW_TAG: ${{ steps.action.outputs.new_tag }}
+        run: |
+          echo "new_tag: $NEW_TAG"
+          if [ -z "$NEW_TAG" ]; then
+            echo "FAIL: new_tag output is empty"
+            exit 1
+          fi
+          echo "PASS: new_tag=$NEW_TAG"
+
+      - name: Assert tag output is set
+        env:
+          TAG: ${{ steps.action.outputs.tag }}
+        run: |
+          echo "tag: $TAG"
+          if [ -z "$TAG" ]; then
+            echo "FAIL: tag output is empty"
+            exit 1
+          fi
+          echo "PASS: tag=$TAG"
+
+      - name: Assert part is minor
+        env:
+          PART: ${{ steps.action.outputs.part }}
+        run: |
+          echo "part: $PART"
+          if [ "$PART" != "minor" ]; then
+            echo "FAIL: expected part='minor' but got '$PART'"
+            exit 1
+          fi
+          echo "PASS: part=minor"

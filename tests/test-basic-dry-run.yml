@@ -1,0 +1,61 @@
+name: Test basic dry-run minor bump
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_REF: refs/heads/main
+      GITHUB_EVENT_NAME: push
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+
+      - name: Configure git user
+        run: |
+          git config user.email "test@example.com"
+          git config user.name "Test User"
+
+      - id: action
+        uses: .
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          DEFAULT_BUMP: minor
+          DRY_RUN: "true"
+          RELEASE_BRANCHES: main,master
+          INITIAL_VERSION: "0.0.0"
+          WITH_V: "false"
+
+      - name: Assert new_tag is set
+        env:
+          NEW_TAG: ${{ steps.action.outputs.new_tag }}
+        run: |
+          echo "new_tag: $NEW_TAG"
+          if [ -z "$NEW_TAG" ]; then
+            echo "FAIL: new_tag output is empty"
+            exit 1
+          fi
+          echo "PASS: new_tag=$NEW_TAG"
+
+      - name: Assert tag is set
+        env:
+          TAG: ${{ steps.action.outputs.tag }}
+        run: |
+          echo "tag: $TAG"
+          if [ -z "$TAG" ]; then
+            echo "FAIL: tag output is empty"
+            exit 1
+          fi
+          echo "PASS: tag=$TAG"
+
+      - name: Assert part is set
+        env:
+          PART: ${{ steps.action.outputs.part }}
+        run: |
+          echo "part: $PART"
+          if [ -z "$PART" ]; then
+            echo "FAIL: part output is empty"
+            exit 1
+          fi
+          echo "PASS: part=$PART"

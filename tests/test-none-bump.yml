@@ -1,0 +1,49 @@
+name: Test none bump skips tag creation
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_REF: refs/heads/main
+      GITHUB_EVENT_NAME: push
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+
+      - name: Configure git user
+        run: |
+          git config user.email "test@example.com"
+          git config user.name "Test User"
+
+      - id: action
+        uses: .
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          DEFAULT_BUMP: none
+          DRY_RUN: "true"
+          RELEASE_BRANCHES: main,master
+          INITIAL_VERSION: "0.0.0"
+
+      - name: Assert part is none
+        env:
+          PART: ${{ steps.action.outputs.part }}
+        run: |
+          echo "part: $PART"
+          if [ "$PART" != "none" ]; then
+            echo "FAIL: expected part='none', got '$PART'"
+            exit 1
+          fi
+          echo "PASS: part=none as expected"
+
+      - name: Assert new_tag is set (to current tag, not bumped)
+        env:
+          NEW_TAG: ${{ steps.action.outputs.new_tag }}
+        run: |
+          echo "new_tag: $NEW_TAG"
+          if [ -z "$NEW_TAG" ]; then
+            echo "FAIL: new_tag output is empty"
+            exit 1
+          fi
+          echo "PASS: new_tag=$NEW_TAG"

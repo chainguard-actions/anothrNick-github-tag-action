@@ -1,0 +1,50 @@
+name: Test patch bump dry-run
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_REF: refs/heads/main
+      GITHUB_EVENT_NAME: push
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+
+      - id: action
+        uses: .
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          DEFAULT_BUMP: patch
+          DRY_RUN: "true"
+          RELEASE_BRANCHES: main,master
+          INITIAL_VERSION: "0.0.0"
+          VERBOSE: "true"
+
+      - name: Assert part is patch
+        env:
+          PART: ${{ steps.action.outputs.part }}
+        run: |
+          echo "part: $PART"
+          if [ "$PART" != "patch" ]; then
+            echo "FAIL: expected part='patch', got '$PART'"
+            exit 1
+          fi
+          echo "PASS: part=$PART"
+
+      - name: Assert new_tag is a valid semver
+        env:
+          NEW_TAG: ${{ steps.action.outputs.new_tag }}
+        run: |
+          echo "new_tag: $NEW_TAG"
+          if [ -z "$NEW_TAG" ]; then
+            echo "FAIL: new_tag output is empty"
+            exit 1
+          fi
+          # Validate semver format X.Y.Z
+          if ! echo "$NEW_TAG" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "FAIL: new_tag '$NEW_TAG' is not a valid semver (X.Y.Z)"
+            exit 1
+          fi
+          echo "PASS: new_tag=$NEW_TAG is valid semver"
