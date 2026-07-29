@@ -1,0 +1,49 @@
+name: Test default bump none
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+
+      - name: Set up git origin reachable inside the Docker container
+        run: |
+          git config user.email "test@example.com"
+          git config user.name "Test User"
+          rm -rf "$GITHUB_WORKSPACE/.git-remote"
+          git init --bare "$GITHUB_WORKSPACE/.git-remote"
+          git push "$GITHUB_WORKSPACE/.git-remote" HEAD:refs/heads/act-harness
+          git push "$GITHUB_WORKSPACE/.git-remote" --tags
+          git remote set-url origin "$GITHUB_WORKSPACE/.git-remote" 2>/dev/null || \
+            git remote add origin "$GITHUB_WORKSPACE/.git-remote"
+
+      - id: action
+        uses: .
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DEFAULT_BUMP: none
+          DRY_RUN: "true"
+          INITIAL_VERSION: "0.1.0"
+          RELEASE_BRANCHES: act-harness,master,main
+          WITH_V: "false"
+          VERBOSE: "true"
+
+      - name: Assert part output is 'none' when default bump is none
+        env:
+          PART: ${{ steps.action.outputs.part }}
+          NEW_TAG: ${{ steps.action.outputs.new_tag }}
+          TAG: ${{ steps.action.outputs.tag }}
+        run: |
+          echo "part: $PART"
+          echo "new_tag: $NEW_TAG"
+          echo "tag: $TAG"
+          # When DEFAULT_BUMP=none and no bump token in commit, part should be 'none'
+          # and new_tag/tag should equal the current (initial) tag
+          if [ -n "$PART" ] && [ "$PART" != "none" ]; then
+            echo "FAIL: expected part='none' or empty, got '$PART'"
+            exit 1
+          fi
+          echo "PASS: part=$PART (none or empty as expected)"

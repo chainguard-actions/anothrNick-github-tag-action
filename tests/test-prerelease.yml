@@ -1,0 +1,53 @@
+name: Test prerelease tag on non-release branch
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_REF: refs/heads/feature-branch
+      GITHUB_EVENT_NAME: push
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+
+      - name: Configure git user and switch to feature branch
+        run: |
+          git config user.email "test@example.com"
+          git config user.name "Test User"
+          git checkout -b feature-branch || git checkout feature-branch
+
+      - id: action
+        uses: .
+        env:
+          DEFAULT_BUMP: minor
+          PRERELEASE: "true"
+          PRERELEASE_SUFFIX: beta
+          DRY_RUN: "true"
+          RELEASE_BRANCHES: main,master
+          INITIAL_VERSION: "0.0.0"
+          WITH_V: "false"
+          GIT_API_TAGGING: "false"
+
+      - name: Assert new_tag contains beta suffix
+        env:
+          NEW_TAG: ${{ steps.action.outputs.new_tag }}
+        run: |
+          echo "new_tag: $NEW_TAG"
+          if [[ "$NEW_TAG" != *beta* ]]; then
+            echo "FAIL: expected new_tag to contain 'beta', got '$NEW_TAG'"
+            exit 1
+          fi
+          echo "PASS: new_tag=$NEW_TAG"
+
+      - name: Assert part contains pre-
+        env:
+          PART: ${{ steps.action.outputs.part }}
+        run: |
+          echo "part: $PART"
+          if [[ "$PART" != pre-* ]]; then
+            echo "FAIL: expected part to start with 'pre-', got '$PART'"
+            exit 1
+          fi
+          echo "PASS: part=$PART"

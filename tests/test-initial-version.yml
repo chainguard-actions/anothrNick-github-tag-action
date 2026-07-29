@@ -1,0 +1,62 @@
+name: Test initial version
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+
+      - name: Set up git origin reachable inside the Docker container
+        run: |
+          git config user.email "test@example.com"
+          git config user.name "Test User"
+          rm -rf "$GITHUB_WORKSPACE/.git-remote"
+          git init --bare "$GITHUB_WORKSPACE/.git-remote"
+          git push "$GITHUB_WORKSPACE/.git-remote" HEAD:refs/heads/act-harness
+          git push "$GITHUB_WORKSPACE/.git-remote" --tags
+          git remote set-url origin "$GITHUB_WORKSPACE/.git-remote" 2>/dev/null || \
+            git remote add origin "$GITHUB_WORKSPACE/.git-remote"
+
+      - id: action
+        uses: .
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DEFAULT_BUMP: patch
+          DRY_RUN: "true"
+          INITIAL_VERSION: "2.5.0"
+          RELEASE_BRANCHES: act-harness,master,main
+          WITH_V: "false"
+          VERBOSE: "true"
+
+      - name: Assert new_tag is based on initial version or a valid semver
+        env:
+          NEW_TAG: ${{ steps.action.outputs.new_tag }}
+          PART: ${{ steps.action.outputs.part }}
+        run: |
+          echo "new_tag: $NEW_TAG"
+          echo "part: $PART"
+          if [ -z "$NEW_TAG" ]; then
+            echo "FAIL: new_tag is empty"
+            exit 1
+          fi
+          # new_tag should be a valid semver (digits.digits.digits) or start with one
+          if ! echo "$NEW_TAG" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+'; then
+            echo "FAIL: new_tag '$NEW_TAG' does not look like a semver"
+            exit 1
+          fi
+          echo "PASS: new_tag=$NEW_TAG is a valid semver"
+
+      - name: Assert part is patch or empty
+        env:
+          PART: ${{ steps.action.outputs.part }}
+        run: |
+          echo "part: $PART"
+          # part should be 'patch' when bumped, or empty if skipped (no new commits)
+          if [ -n "$PART" ] && [ "$PART" != "patch" ]; then
+            echo "FAIL: expected part='patch' or empty, got '$PART'"
+            exit 1
+          fi
+          echo "PASS: part=$PART"
