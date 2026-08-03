@@ -13,6 +13,7 @@ Hardened by [Chainguard](https://www.chainguard.dev) from the upstream action at
 | 1.72.0 | [`1.72.0`](https://github.com/chainguard-actions/anothrNick-github-tag-action/tree/1.72.0) | [`da70c4e`](https://github.com/anothrNick/github-tag-action/commit/da70c4e4c9ff91cc59445f3d9f1606b7f144be72) |
 | 1.73.0 | [`1.73.0`](https://github.com/chainguard-actions/anothrNick-github-tag-action/tree/1.73.0) | [`e528bc2`](https://github.com/anothrNick/github-tag-action/commit/e528bc2b9628971ce0e6f823f3052d1dcd9d512c) |
 | 1.74.0 | [`1.74.0`](https://github.com/chainguard-actions/anothrNick-github-tag-action/tree/1.74.0) | [`6353aab`](https://github.com/anothrNick/github-tag-action/commit/6353aab4d68fd16a01753ee16d5cd24067543c47) |
+| 1.75.0 | [`1.75.0`](https://github.com/chainguard-actions/anothrNick-github-tag-action/tree/1.75.0) | [`4ed4496`](https://github.com/anothrNick/github-tag-action/commit/4ed44965e0db8dab2b466a16da04aec3cc312fd8) |
 
 ## Privacy
 
